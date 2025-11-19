@@ -1,0 +1,45 @@
+name: PHP Static Analysis
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  schedule:
+    - cron: '0 6 * * 0' # semanal (opcional)
+
+jobs:
+  phpstan:
+    name: Run PHPStan
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v3
+        with:
+          php-version: '8.2'
+          coverage: none
+
+      - name: Enable composer cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-
+
+      - name: Install composer dependencies (if composer.json exists)
+        run: |
+          if [ -f composer.json ]; then composer install --no-progress --no-interaction --prefer-dist; fi
+
+      - name: Install PHPStan (if not present)
+        run: |
+          composer require --no-interaction --dev phpstan/phpstan:^1.12 || true
+
+      - name: Run PHPStan
+        run: |
+          vendor/bin/phpstan analyse --level=4 --memory-limit=1G || true
